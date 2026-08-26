@@ -4011,7 +4011,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-161838";
+const APP_VERSION = "20260826-162755";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4130,11 +4130,13 @@ let funilFiltroStatus = 'todos';
 let funilFiltroResp = 'todos';
 let funilBusca = '';
 let funilPage = 1;
-const FUNIL_PAGE_SIZE = 100;
+const FUNIL_PAGE_SIZE = 50;
 let currentFunilNegId = null;
 let aporteFinanceiroActive = false;
 let APORTE_POLOS_DATA = lerLocalStorageJSON('aporte_polos_cache', null);
 let aportePoloBusca = '';
+let aportePoloPage = 1;
+const APORTE_POLO_PAGE_SIZE = 50;
 const FUNIL_STATUS_COLORS = {
   "Ativo": "#4ade80",
   "Em negociação": "#38bdf8",
@@ -5592,7 +5594,8 @@ function deleteFunilNeg(){
 }
 
 /* ---------- DASHBOARD FINANCEIRO — APORTE POR POLO ---------- */
-function setAportePoloBusca(v){ aportePoloBusca = v.trim().toLowerCase(); renderAportePolosView(); }
+function setAportePoloBusca(v){ aportePoloBusca = v.trim().toLowerCase(); aportePoloPage = 1; renderAportePolosView(); }
+function changeAportePoloPage(delta){ aportePoloPage += delta; renderAportePolosView(); }
 
 function renderAportePolosView(){
   const container = document.getElementById('aporteFinanceiroBody');
@@ -5649,8 +5652,14 @@ function renderAportePolosView(){
     );
   }
 
+  const totalPagesAporte = Math.max(1, Math.ceil(listaPolos.length / APORTE_POLO_PAGE_SIZE));
+  if(aportePoloPage > totalPagesAporte) aportePoloPage = totalPagesAporte;
+  if(aportePoloPage < 1) aportePoloPage = 1;
+  const startIdxAporte = (aportePoloPage - 1) * APORTE_POLO_PAGE_SIZE;
+  const pagePolos = listaPolos.slice(startIdxAporte, startIdxAporte + APORTE_POLO_PAGE_SIZE);
+
   const colunasMeses = meses.map(m=>`<th>${escapeHtml(m)}</th>`).join('');
-  const linhasHtml = listaPolos.map(p => {
+  const linhasHtml = pagePolos.map(p => {
     const parcelasHtml = p.parcelas.map(v => `<td>${v ? fmt(v) : '—'}</td>`).join('');
     const quitado = p.saldoAPagar === 0;
     return `
@@ -5680,7 +5689,13 @@ function renderAportePolosView(){
         </thead>
         <tbody>${linhasHtml || `<tr><td colspan="${7+meses.length}" style="text-align:center; color:var(--ink-faint);">Nenhum polo encontrado</td></tr>`}</tbody>
       </table>
-    </div>`;
+    </div>
+    ${totalPagesAporte > 1 ? `
+    <div class="fup-pager">
+      <button ${aportePoloPage<=1?'disabled':''} onclick="changeAportePoloPage(-1)">‹</button>
+      <span>${aportePoloPage}/${totalPagesAporte}</span>
+      <button ${aportePoloPage>=totalPagesAporte?'disabled':''} onclick="changeAportePoloPage(1)">›</button>
+    </div>` : ''}`;
 }
 
 function openMetaModal(){
