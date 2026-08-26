@@ -888,6 +888,36 @@
   .lead-proxima.atrasada{color:#f87171; font-weight:700;}
   .central-empty{font-size:12.5px; color:var(--ink-faint); text-align:center; padding:30px 10px; font-style:italic;}
 
+  .funil-view{padding:22px 28px 48px;}
+  .funil-toolbar{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:10px;}
+  .funil-toolbar h2{font-size:19px; font-weight:800; color:var(--ink); margin:0;}
+  .funil-toolbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .funil-toolbar-actions select{
+    padding:7px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05); color:var(--ink); font-size:12px; font-family:inherit;
+  }
+  .funil-legend{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:14px;}
+  .funil-legend-item{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft);}
+  .funil-legend-dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .funil-table-wrap{overflow-x:auto; border-radius:16px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.02);}
+  .funil-table{width:100%; border-collapse:collapse; font-size:12.5px; white-space:nowrap;}
+  .funil-table thead th{
+    text-align:left; padding:11px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--ink-faint); border-bottom:1px solid rgba(255,255,255,.1); position:sticky; top:0; background:#12131c;
+  }
+  .funil-table tbody td{padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.06); color:var(--ink-soft);}
+  .funil-table tbody tr.funil-row-sistema{cursor:pointer; transition:.15s background ease;}
+  .funil-table tbody tr.funil-row-sistema:hover{background:rgba(74,222,128,.07);}
+  .funil-obs-cell{max-width:260px; white-space:normal; color:var(--ink-faint); font-size:11.5px;}
+  .funil-tag-sistema{
+    font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:rgba(74,222,128,.16); color:#4ade80; border:1px solid rgba(74,222,128,.4);
+  }
+  .funil-tag-planilha{
+    font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:rgba(96,165,250,.16); color:#60a5fa; border:1px solid rgba(96,165,250,.4);
+  }
+
   .fin-source-tabs{display:flex; gap:6px; margin-bottom:10px; position:relative; z-index:3;}
   .fin-source-btn{
     flex:1; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1); color:var(--ink-soft);
@@ -1065,7 +1095,7 @@
       <span class="current-user-name" id="currentUserName">Admin Geral</span>
     </div>
     <button class="btn btn-ghost" id="linksToggleBtn" onclick="toggleLinksView()" title="Lista de Links">🔗 Lista Links</button>
-    <button class="btn btn-ghost" onclick="loadFromServer(); loadFinanceiroFromServer(); loadAportesFromServer(); loadFunilFromServer(); loadFupFromServer('Gisele'); loadFupFromServer('Décio'); loadPolosNovosFromServer(); carregarLinks(); loadResumoExpansaoFromServer();">🔄 Sincronizar</button>
+    <button class="btn btn-ghost" onclick="loadFromServer(); loadFinanceiroFromServer(); loadAportesFromServer(); loadFunilFromServer(); loadFunilDetalhadoFromServer(); loadFupFromServer('Gisele'); loadFupFromServer('Décio'); loadPolosNovosFromServer(); carregarLinks(); loadResumoExpansaoFromServer();">🔄 Sincronizar</button>
     <button class="btn btn-ghost" onclick="exportData()">⬇ Exportar</button>
     <button class="btn btn-ghost" onclick="baixarModeloCSV()">📄 Modelo CSV</button>
     <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">⬆ Importar</button>
@@ -1077,6 +1107,7 @@
     <button class="btn btn-ghost nav-arrow-btn" onclick="scrollBoardNext()" title="Rolar para as próximas colunas">→</button>
     <button class="btn btn-ghost" id="dashboardToggleBtn" onclick="toggleDashboardView()" title="Ir para o dashboard">📊 Dashboard</button>
     <button class="btn btn-ghost" id="centralToggleBtn" onclick="toggleCentralView()" title="Central de Controle">🎯 Central</button>
+    <button class="btn btn-ghost" id="funilToggleBtn" onclick="toggleFunilView()" title="Funil de Expansão (visão detalhada)">📈 Funil</button>
     <button class="btn btn-ghost theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
       <span id="themeToggleIcon">🌙</span>
     </button>
@@ -1303,6 +1334,40 @@
     </div>
 
   </div>
+</div>
+
+<!-- FUNIL DE EXPANSÃO (DETALHADO) -->
+<div class="funil-view" id="funilView" style="display:none;">
+  <div class="funil-toolbar">
+    <h2>📈 Funil de Expansão</h2>
+    <div class="funil-toolbar-actions">
+      <select id="funilFiltroStatusSel" onchange="setFunilFiltroStatus(this.value)">
+        <option value="todos">Todos os status</option>
+        <option value="Ativo">Ativo</option>
+        <option value="Em negociação">Em negociação</option>
+        <option value="Validação da gerência">Validação da gerência</option>
+        <option value="Previsto">Previsto</option>
+        <option value="StandBy">StandBy</option>
+        <option value="Inativo">Inativo</option>
+        <option value="Declinado">Declinado</option>
+      </select>
+      <select id="funilFiltroRespSel" onchange="setFunilFiltroResp(this.value)">
+        <option value="todos">Todos responsáveis</option>
+        <option value="Gisele">Gisele</option>
+        <option value="Décio">Décio</option>
+        <option value="Wayner">Wayner</option>
+        <option value="Operações">Operações</option>
+        <option value="Equipe do Joel">Equipe do Joel</option>
+      </select>
+      <button class="btn btn-ghost" onclick="loadFunilDetalhadoFromServer()">🔄 Atualizar</button>
+      <button class="btn btn-solid" onclick="openFunilNegModal(null)">+ Nova Negociação</button>
+    </div>
+  </div>
+  <div class="funil-legend">
+    <span class="funil-legend-item"><span class="funil-legend-dot" style="background:#60a5fa;"></span> Da planilha (só visualização)</span>
+    <span class="funil-legend-item"><span class="funil-legend-dot" style="background:#4ade80;"></span> Cadastrado no sistema (clique para editar)</span>
+  </div>
+  <div id="funilDashboardBody"></div>
 </div>
 
 <!-- LISTA DE LINKS -->
@@ -1597,6 +1662,96 @@
       <div class="footer-right" style="margin-left:auto;">
         <button class="btn btn-cancel" onclick="closeLeadModal()">Cancelar</button>
         <button class="btn btn-save" onclick="saveLead()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA NEGOCIAÇÃO (FUNIL) -->
+<div class="overlay" id="funilNegOverlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head"><h2 id="funilNegModalTitle">Nova Negociação</h2></div>
+    <div style="padding:4px 24px 6px;">
+      <div class="grid2">
+        <div class="field">
+          <label>ID FECAF</label>
+          <input id="funilneg_idFecaf" type="text" placeholder="Ex: 2030">
+        </div>
+        <div class="field">
+          <label>UF</label>
+          <select id="funilneg_uf">
+            <option value="">—</option>
+            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Praça</label>
+          <input id="funilneg_praca" type="text" placeholder="Ex: Manaus">
+        </div>
+        <div class="field full">
+          <label>Proponente</label>
+          <input id="funilneg_proponente" type="text" placeholder="Nome do proponente">
+        </div>
+        <div class="field">
+          <label>Contato</label>
+          <div style="display:flex; gap:8px;">
+            <input id="funilneg_contato" type="text" placeholder="Telefone/contato" style="flex:1;">
+            <button type="button" class="btn-whatsapp" onclick="abrirWhatsAppFunilNeg()" title="Abrir conversa no WhatsApp Web">💬</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Origem do contato</label>
+          <input id="funilneg_origemContato" type="text" placeholder="Ex: Indicação, Site...">
+        </div>
+        <div class="field">
+          <label>Responsável</label>
+          <select id="funilneg_responsavel">
+            <option value="Gisele">Gisele</option>
+            <option value="Décio">Décio</option>
+            <option value="Wayner">Wayner</option>
+            <option value="Operações">Operações</option>
+            <option value="Equipe do Joel">Equipe do Joel</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status negociação</label>
+          <select id="funilneg_status">
+            <option value="Ativo">Ativo</option>
+            <option value="Em negociação">Em negociação</option>
+            <option value="Validação da gerência">Validação da gerência</option>
+            <option value="Previsto">Previsto</option>
+            <option value="StandBy">StandBy</option>
+            <option value="Inativo">Inativo</option>
+            <option value="Declinado">Declinado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Data 1º contato</label>
+          <input id="funilneg_dataContato" type="date">
+        </div>
+        <div class="field">
+          <label>Data ativação</label>
+          <input id="funilneg_dataAtivacao" type="date">
+        </div>
+        <div class="field full">
+          <label>Observações</label>
+          <textarea id="funilneg_obsStatus" placeholder="Observações do status..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="funilNegDeleteBtn" onclick="deleteFunilNeg()" style="display:none;">🗑 Excluir</button>
+      <div class="footer-right" style="margin-left:auto;">
+        <button class="btn btn-cancel" onclick="closeFunilNegModal()">Cancelar</button>
+        <button class="btn btn-save" onclick="saveFunilNeg()">💾 Salvar</button>
       </div>
     </div>
   </div>
@@ -1966,6 +2121,29 @@ async function loadFunilFromServer(){
     hideLoadingBar();
   }
   if(centralActive) renderFunilQuad();
+}
+
+/* ---------- SINCRONIZAÇÃO: Funil de Expansão (detalhado, painel novo) ---------- */
+async function apiListarFunilDetalhado(){
+  const res = await fetch(`${API_BASE_URL}/funil-listar-detalhado`, { cache: 'no-store' });
+  if(!res.ok) throw new Error(`Falha ao listar funil detalhado (status ${res.status})`);
+  return await res.json();
+}
+
+async function loadFunilDetalhadoFromServer(){
+  showLoadingBar();
+  try{
+    const dados = await apiListarFunilDetalhado();
+    if(dados && Array.isArray(dados.lista)){
+      FUNIL_DETALHADO = dados.lista;
+      localStorage.setItem('funil_detalhado_cache', JSON.stringify(FUNIL_DETALHADO));
+    }
+  }catch(e){
+    console.error('[funil-detalhado] Falha ao buscar do n8n, usando cache:', e);
+  }finally{
+    hideLoadingBar();
+  }
+  if(funilActive) renderFunilDashboard();
 }
 
 /* ---------- SINCRONIZAÇÃO: Resumo financeiro automático (planilha Expansão) ---------- */
@@ -3562,7 +3740,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-133114";
+const APP_VERSION = "20260826-140912";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -3613,6 +3791,9 @@ document.addEventListener('click', (e)=>{
 });
 document.getElementById('leadOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'leadOverlay') closeLeadModal();
+});
+document.getElementById('funilNegOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'funilNegOverlay') closeFunilNegModal();
 });
 document.getElementById('financeiroOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'financeiroOverlay') closeFinanceiroModal();
@@ -3670,6 +3851,21 @@ let RESUMO_EXPANSAO = lerLocalStorageJSON('resumo_expansao_cache', null);
 let metaBimestral = parseInt(lerLocalStorageTexto('fup_meta', '50'), 10);
 let currentLeadId = null;
 let currentLeadResp = 'Gisele';
+let funilActive = false;
+let FUNIL_DETALHADO = lerLocalStorageJSON('funil_detalhado_cache', []);
+let funilNegociacoesSistema = lerLocalStorageJSON('funil_negociacoes_sistema', []);
+let funilFiltroStatus = 'todos';
+let funilFiltroResp = 'todos';
+let currentFunilNegId = null;
+const FUNIL_STATUS_COLORS = {
+  "Ativo": "#4ade80",
+  "Em negociação": "#38bdf8",
+  "Validação da gerência": "#a78bfa",
+  "Previsto": "#facc15",
+  "StandBy": "#94a3b8",
+  "Inativo": "#f87171",
+  "Declinado": "#ef4444"
+};
 let selectMode = false;
 let selectedForBulk = new Set();
 let chartFunilInstance = null;
@@ -3701,12 +3897,15 @@ function hideAllExtraViews(){
   document.getElementById('dashboardView').style.display = "none";
   document.getElementById('centralView').style.display = "none";
   document.getElementById('linksView').style.display = "none";
+  document.getElementById('funilView').style.display = "none";
   dashboardActive = false;
   centralActive = false;
   linksActive = false;
+  funilActive = false;
   document.getElementById('dashboardToggleBtn').textContent = "📊 Dashboard";
   document.getElementById('centralToggleBtn').textContent = "🎯 Central";
   document.getElementById('linksToggleBtn').textContent = "🔗 Lista Links";
+  document.getElementById('funilToggleBtn').textContent = "📈 Funil";
 }
 
 function toggleLinksView(){
@@ -3948,6 +4147,27 @@ function toggleCentralView(){
     document.getElementById('centralView').style.display = "block";
     document.getElementById('centralToggleBtn').textContent = "🗂️ Kanban";
     renderCentral();
+  } else {
+    board.style.display = "flex";
+    if(toolbar) toolbar.style.display = "flex";
+    render();
+  }
+}
+
+function toggleFunilView(){
+  const board = document.getElementById('board');
+  const toolbar = document.querySelector('.toolbar');
+  const wasActive = funilActive;
+  hideAllExtraViews();
+
+  if(!wasActive){
+    funilActive = true;
+    board.style.display = "none";
+    if(toolbar) toolbar.style.display = "none";
+    document.getElementById('funilView').style.display = "block";
+    document.getElementById('funilToggleBtn').textContent = "🗂️ Kanban";
+    if(FUNIL_DETALHADO.length === 0) loadFunilDetalhadoFromServer();
+    renderFunilDashboard();
   } else {
     board.style.display = "flex";
     if(toolbar) toolbar.style.display = "flex";
@@ -4883,6 +5103,154 @@ function renderFunilQuad(){
   `;
 }
 
+/* ---------- FUNIL DE EXPANSÃO — PAINEL DETALHADO ---------- */
+function saveFunilNegociacoesToStorage(){ try{ localStorage.setItem('funil_negociacoes_sistema', JSON.stringify(funilNegociacoesSistema)); }catch(e){} }
+
+function combinarFunilDataset(){
+  const doSistema = funilNegociacoesSistema.map(n => ({ ...n, origemSistema: true }));
+  return [...FUNIL_DETALHADO, ...doSistema];
+}
+
+function setFunilFiltroStatus(v){ funilFiltroStatus = v; renderFunilDashboard(); }
+function setFunilFiltroResp(v){ funilFiltroResp = v; renderFunilDashboard(); }
+
+function renderFunilDashboard(){
+  const container = document.getElementById('funilDashboardBody');
+  let lista = combinarFunilDataset();
+
+  if(funilFiltroStatus !== 'todos') lista = lista.filter(l => l.status === funilFiltroStatus);
+  if(funilFiltroResp !== 'todos') lista = lista.filter(l => l.responsavel === funilFiltroResp);
+
+  if(lista.length === 0){
+    container.innerHTML = `<div class="central-empty">Nenhuma negociação encontrada com esse filtro</div>`;
+    return;
+  }
+
+  lista = lista.slice().sort((a,b) => (b.dataContato||'').localeCompare(a.dataContato||''));
+
+  const rowsHtml = lista.map(l=>{
+    const cor = FUNIL_STATUS_COLORS[l.status] || '#94a3b8';
+    const editavel = !!l.origemSistema;
+    const dataContatoFmt = l.dataContato ? new Date(l.dataContato+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    const dataAtivacaoFmt = l.dataAtivacao ? new Date(l.dataAtivacao+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    return `
+      <tr class="${editavel ? 'funil-row-sistema' : 'funil-row-planilha'}" ${editavel ? `onclick="openFunilNegModal('${l.id}')"` : ''}>
+        <td>${escapeHtml(l.idFecaf || '—')}</td>
+        <td>${escapeHtml(l.praca||'')}${l.uf ? '/'+escapeHtml(l.uf) : ''}</td>
+        <td>${escapeHtml(l.proponente||'—')}</td>
+        <td>${escapeHtml(l.contato||'—')}</td>
+        <td>${escapeHtml(l.origemContato||'—')}</td>
+        <td>${escapeHtml(l.responsavel||'—')}</td>
+        <td><span class="lead-status-pill" style="background:${cor}22; color:${cor}; border:1px solid ${cor}55;">${escapeHtml(l.status||'—')}</span></td>
+        <td>${dataContatoFmt}</td>
+        <td>${dataAtivacaoFmt}</td>
+        <td class="funil-obs-cell">${escapeHtml(l.obsStatus||'')}</td>
+        <td>${editavel ? '<span class="funil-tag-sistema">Sistema</span>' : '<span class="funil-tag-planilha">Planilha</span>'}</td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="funil-table-wrap">
+      <table class="funil-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Praça/UF</th><th>Proponente</th><th>Contato</th><th>Origem</th>
+            <th>Responsável</th><th>Status</th><th>1º Contato</th><th>Ativação</th><th>Observações</th><th>Fonte</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function abrirWhatsAppFunilNeg(){
+  const nome = document.getElementById('funilneg_proponente').value || '';
+  const telefone = document.getElementById('funilneg_contato').value || '';
+  const link = linkWhatsApp(telefone, nome);
+  if(!link){
+    showToast("Preencha o contato antes de abrir o WhatsApp.");
+    return;
+  }
+  window.open(link, '_blank');
+}
+
+function openFunilNegModal(id){
+  currentFunilNegId = id;
+  const del = document.getElementById('funilNegDeleteBtn');
+  if(id){
+    const n = funilNegociacoesSistema.find(x=>x.id===id);
+    if(!n) return;
+    document.getElementById('funilNegModalTitle').textContent = 'Editar Negociação';
+    document.getElementById('funilneg_idFecaf').value = n.idFecaf || '';
+    document.getElementById('funilneg_praca').value = n.praca || '';
+    document.getElementById('funilneg_uf').value = n.uf || '';
+    document.getElementById('funilneg_proponente').value = n.proponente || '';
+    document.getElementById('funilneg_contato').value = n.contato || '';
+    document.getElementById('funilneg_origemContato').value = n.origemContato || '';
+    document.getElementById('funilneg_responsavel').value = n.responsavel || 'Gisele';
+    document.getElementById('funilneg_status').value = n.status || 'Em negociação';
+    document.getElementById('funilneg_dataContato').value = n.dataContato || '';
+    document.getElementById('funilneg_dataAtivacao').value = n.dataAtivacao || '';
+    document.getElementById('funilneg_obsStatus').value = n.obsStatus || '';
+    del.style.display = "inline-flex";
+  } else {
+    document.getElementById('funilNegModalTitle').textContent = 'Nova Negociação';
+    ['funilneg_idFecaf','funilneg_praca','funilneg_proponente','funilneg_contato','funilneg_origemContato','funilneg_obsStatus'].forEach(f=>document.getElementById(f).value = '');
+    document.getElementById('funilneg_uf').value = '';
+    document.getElementById('funilneg_responsavel').value = 'Gisele';
+    document.getElementById('funilneg_status').value = 'Em negociação';
+    document.getElementById('funilneg_dataContato').value = todayISO().slice(0,10);
+    document.getElementById('funilneg_dataAtivacao').value = '';
+    del.style.display = "none";
+  }
+  document.getElementById('funilNegOverlay').classList.add('open');
+}
+
+function closeFunilNegModal(){
+  document.getElementById('funilNegOverlay').classList.remove('open');
+  currentFunilNegId = null;
+}
+
+function saveFunilNeg(){
+  const praca = document.getElementById('funilneg_praca').value.trim();
+  const proponente = document.getElementById('funilneg_proponente').value.trim();
+  if(!praca && !proponente){ showToast("Informe ao menos a praça ou o proponente."); return; }
+  const dados = {
+    idFecaf: document.getElementById('funilneg_idFecaf').value.trim(),
+    praca,
+    uf: document.getElementById('funilneg_uf').value,
+    proponente,
+    contato: document.getElementById('funilneg_contato').value.trim(),
+    origemContato: document.getElementById('funilneg_origemContato').value.trim(),
+    responsavel: document.getElementById('funilneg_responsavel').value,
+    status: document.getElementById('funilneg_status').value,
+    dataContato: document.getElementById('funilneg_dataContato').value,
+    dataAtivacao: document.getElementById('funilneg_dataAtivacao').value,
+    obsStatus: document.getElementById('funilneg_obsStatus').value.trim()
+  };
+  if(currentFunilNegId){
+    const n = funilNegociacoesSistema.find(x=>x.id===currentFunilNegId);
+    Object.assign(n, dados);
+    showToast("Negociação atualizada");
+  } else {
+    funilNegociacoesSistema.push({ id: uid(), ...dados, origemSistema: true });
+    showToast("Negociação cadastrada");
+  }
+  saveFunilNegociacoesToStorage();
+  closeFunilNegModal();
+  renderFunilDashboard();
+}
+
+function deleteFunilNeg(){
+  if(!currentFunilNegId) return;
+  if(!confirm("Excluir essa negociação?")) return;
+  funilNegociacoesSistema = funilNegociacoesSistema.filter(x=>x.id!==currentFunilNegId);
+  saveFunilNegociacoesToStorage();
+  closeFunilNegModal();
+  renderFunilDashboard();
+  showToast("Negociação excluída");
+}
+
 function openMetaModal(){
   document.getElementById('meta_valor').value = metaBimestral;
   document.getElementById('metaOverlay').classList.add('open');
@@ -4924,6 +5292,7 @@ loadFromServer();
 loadFinanceiroFromServer();
 loadAportesFromServer();
 loadFunilFromServer();
+loadFunilDetalhadoFromServer();
 loadFupFromServer('Gisele');
 loadFupFromServer('Décio');
 loadPolosNovosFromServer();
