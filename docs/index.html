@@ -955,6 +955,8 @@
   }
   .aporte-mes-label{font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px;}
   .aporte-mes-valor{font-size:13px; font-weight:700; color:#4ade80;}
+  .aporte-card-valores{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+  .aporte-card-valores b{color:var(--ink);}
 
   .fin-source-tabs{display:flex; gap:6px; margin-bottom:10px; position:relative; z-index:3;}
   .fin-source-btn{
@@ -4011,7 +4013,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-162755";
+const APP_VERSION = "20260826-163250";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -5658,21 +5660,33 @@ function renderAportePolosView(){
   const startIdxAporte = (aportePoloPage - 1) * APORTE_POLO_PAGE_SIZE;
   const pagePolos = listaPolos.slice(startIdxAporte, startIdxAporte + APORTE_POLO_PAGE_SIZE);
 
-  const colunasMeses = meses.map(m=>`<th>${escapeHtml(m)}</th>`).join('');
-  const linhasHtml = pagePolos.map(p => {
-    const parcelasHtml = p.parcelas.map(v => `<td>${v ? fmt(v) : '—'}</td>`).join('');
+  const cardsHtml = pagePolos.map(p => {
     const quitado = p.saldoAPagar === 0;
+    const pct = p.totalPrevisto ? Math.min(100, Math.round((p.pagoRegistrado/p.totalPrevisto)*100)) : 0;
+
+    const parcelasChips = meses.map((m,i) => p.parcelas[i] ? `<span class="funil-chip">${escapeHtml(m)}: ${fmt(p.parcelas[i])}</span>` : '').filter(Boolean).join('');
+
     return `
-      <tr>
-        <td>${escapeHtml(p.idPolo || '—')}</td>
-        <td>${escapeHtml(p.fornecedor || '—')}</td>
-        <td>${escapeHtml(p.polo || '—')}</td>
-        <td>${fmt(p.totalPrevisto)}</td>
-        <td>${fmt(p.pagoRegistrado)}</td>
-        <td>${quitado ? '<span class="funil-tag-sistema">Quitado</span>' : fmt(p.saldoAPagar)}</td>
-        ${parcelasHtml}
-        <td class="funil-obs-cell">${escapeHtml(p.observacoes||'')}</td>
-      </tr>`;
+      <div class="funil-card">
+        <div class="funil-card-top">
+          <div>
+            <div class="funil-card-praca">📍 ${escapeHtml(p.polo || '—')}</div>
+            <div class="funil-card-proponente">${escapeHtml(p.fornecedor || 'Fornecedor não informado')}</div>
+          </div>
+          ${quitado
+            ? `<span class="funil-tag-sistema">Quitado</span>`
+            : `<span class="lead-status-pill" style="background:#facc1522; color:#facc15; border:1px solid #facc1555;">${fmt(p.saldoAPagar)} restante</span>`}
+        </div>
+        ${p.idPolo ? `<div class="funil-card-chips"><span class="funil-chip">🆔 ${escapeHtml(p.idPolo)}</span></div>` : ''}
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+        <div class="aporte-card-valores">
+          <span>Previsto: <b>${fmt(p.totalPrevisto)}</b></span>
+          <span>Pago: <b style="color:#4ade80;">${fmt(p.pagoRegistrado)}</b></span>
+          <span>${pct}%</span>
+        </div>
+        ${parcelasChips ? `<div class="funil-card-chips" style="margin-top:8px;">${parcelasChips}</div>` : ''}
+        ${p.observacoes ? `<div class="card-obs">📝 ${escapeHtml(p.observacoes)}</div>` : ''}
+      </div>`;
   }).join('');
 
   container.innerHTML = `
@@ -5680,16 +5694,7 @@ function renderAportePolosView(){
     <div style="font-size:11px; color:var(--ink-soft); margin:4px 0 10px; font-weight:600; text-transform:uppercase; letter-spacing:.3px;">Total pago por mês</div>
     <div class="aporte-meses-grid">${mesesHtml}</div>
     <div style="font-size:11px; color:var(--ink-soft); margin:18px 0 10px; font-weight:600; text-transform:uppercase; letter-spacing:.3px;">Polos (${listaPolos.length}${busca ? ` de ${polos.length}` : ''})</div>
-    <div class="funil-table-wrap">
-      <table class="funil-table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Fornecedor</th><th>Polo</th><th>Previsto</th><th>Pago</th><th>Saldo</th>${colunasMeses}<th>Observações</th>
-          </tr>
-        </thead>
-        <tbody>${linhasHtml || `<tr><td colspan="${7+meses.length}" style="text-align:center; color:var(--ink-faint);">Nenhum polo encontrado</td></tr>`}</tbody>
-      </table>
-    </div>
+    <div class="funil-cards-grid">${cardsHtml || `<div class="central-empty">Nenhum polo encontrado</div>`}</div>
     ${totalPagesAporte > 1 ? `
     <div class="fup-pager">
       <button ${aportePoloPage<=1?'disabled':''} onclick="changeAportePoloPage(-1)">‹</button>
