@@ -957,6 +957,11 @@
   .aporte-mes-valor{font-size:13px; font-weight:700; color:#4ade80;}
   .aporte-card-valores{display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
   .aporte-card-valores b{color:var(--ink);}
+  .aporte-detalhe-lista{max-height:320px; overflow-y:auto; border-top:1px solid rgba(255,255,255,.08);}
+  .aporte-detalhe-linha{
+    display:flex; justify-content:space-between; align-items:center; padding:9px 2px;
+    border-bottom:1px solid rgba(255,255,255,.06); font-size:12.5px; color:var(--ink);
+  }
 
   .fin-source-tabs{display:flex; gap:6px; margin-bottom:10px; position:relative; z-index:3;}
   .fin-source-btn{
@@ -1806,6 +1811,19 @@
       <div class="footer-right" style="margin-left:auto;">
         <button class="btn btn-cancel" onclick="closeFunilNegModal()">Cancelar</button>
         <button class="btn btn-save" onclick="saveFunilNeg()">💾 Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE DO POLO (APORTE FINANCEIRO) -->
+<div class="overlay" id="aportePoloDetalheOverlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head"><h2 id="aportePoloDetalheTitulo">Detalhe do Polo</h2></div>
+    <div style="padding:4px 24px 16px;" id="aportePoloDetalheCorpo"></div>
+    <div class="modal-footer">
+      <div class="footer-right" style="margin-left:auto;">
+        <button class="btn btn-cancel" onclick="fecharDetalhePolo()">Fechar</button>
       </div>
     </div>
   </div>
@@ -4013,7 +4031,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-163250";
+const APP_VERSION = "20260826-164213";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4067,6 +4085,9 @@ document.getElementById('leadOverlay').addEventListener('click', (e)=>{
 });
 document.getElementById('funilNegOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'funilNegOverlay') closeFunilNegModal();
+});
+document.getElementById('aportePoloDetalheOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'aportePoloDetalheOverlay') fecharDetalhePolo();
 });
 document.getElementById('financeiroOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'financeiroOverlay') closeFinanceiroModal();
@@ -5665,9 +5686,10 @@ function renderAportePolosView(){
     const pct = p.totalPrevisto ? Math.min(100, Math.round((p.pagoRegistrado/p.totalPrevisto)*100)) : 0;
 
     const parcelasChips = meses.map((m,i) => p.parcelas[i] ? `<span class="funil-chip">${escapeHtml(m)}: ${fmt(p.parcelas[i])}</span>` : '').filter(Boolean).join('');
+    const idxGlobal = polos.indexOf(p);
 
     return `
-      <div class="funil-card">
+      <div class="funil-card" onclick="abrirDetalhePolo(${idxGlobal})">
         <div class="funil-card-top">
           <div>
             <div class="funil-card-praca">📍 ${escapeHtml(p.polo || '—')}</div>
@@ -5702,6 +5724,38 @@ function renderAportePolosView(){
       <button ${aportePoloPage>=totalPagesAporte?'disabled':''} onclick="changeAportePoloPage(1)">›</button>
     </div>` : ''}`;
 }
+
+function abrirDetalhePolo(idx){
+  const dados = APORTE_POLOS_DATA;
+  const p = dados && dados.polos[idx];
+  if(!p) return;
+
+  const fmt = (v) => `R$ ${(v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  const quitado = p.saldoAPagar === 0;
+
+  document.getElementById('aportePoloDetalheTitulo').textContent = p.polo || p.idPolo || 'Detalhe do Polo';
+
+  const linhasMeses = dados.meses.map((m,i) => `
+    <div class="aporte-detalhe-linha">
+      <span>${escapeHtml(m)}</span>
+      <span style="${p.parcelas[i] ? 'color:#4ade80; font-weight:700;' : 'color:var(--ink-faint);'}">${p.parcelas[i] ? fmt(p.parcelas[i]) : '— sem pagamento'}</span>
+    </div>`).join('');
+
+  document.getElementById('aportePoloDetalheCorpo').innerHTML = `
+    <div style="font-size:12px; color:var(--ink-soft); margin-bottom:4px;">${escapeHtml(p.fornecedor || 'Fornecedor não informado')}${p.idPolo ? ` · ID ${escapeHtml(p.idPolo)}` : ''}</div>
+    <div class="aporte-card-valores" style="margin-bottom:10px;">
+      <span>Previsto: <b>${fmt(p.totalPrevisto)}</b></span>
+      <span>Pago: <b style="color:#4ade80;">${fmt(p.pagoRegistrado)}</b></span>
+      <span>${quitado ? '<span class="funil-tag-sistema">Quitado</span>' : `Saldo: <b style="color:#facc15;">${fmt(p.saldoAPagar)}</b>`}</span>
+    </div>
+    ${p.observacoes ? `<div class="card-obs" style="margin-bottom:12px;">📝 ${escapeHtml(p.observacoes)}</div>` : ''}
+    <div style="font-size:11px; color:var(--ink-soft); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:.3px;">Lançamentos por mês</div>
+    <div class="aporte-detalhe-lista">${linhasMeses}</div>
+  `;
+
+  document.getElementById('aportePoloDetalheOverlay').classList.add('open');
+}
+function fecharDetalhePolo(){ document.getElementById('aportePoloDetalheOverlay').classList.remove('open'); }
 
 function openMetaModal(){
   document.getElementById('meta_valor').value = metaBimestral;
