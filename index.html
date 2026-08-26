@@ -929,6 +929,25 @@
   }
   .funil-status-select:focus{ outline:none; }
 
+  .funil-cards-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:14px;
+  }
+  .funil-card{
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px;
+    padding:14px 16px; transition:.15s background ease;
+  }
+  .funil-card[onclick]{cursor:pointer;}
+  .funil-card[onclick]:hover{background:rgba(74,222,128,.06);}
+  .funil-card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px;}
+  .funil-card-praca{font-size:13.5px; font-weight:700; color:var(--ink);}
+  .funil-card-proponente{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .funil-card-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .funil-chip{
+    font-size:10.5px; color:var(--ink-soft); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+    padding:3px 8px; border-radius:999px;
+  }
+  .funil-card-datas{font-size:10.5px; color:var(--ink-faint); margin-bottom:6px;}
+
   .aporte-meses-grid{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;}
   .aporte-mes-card{
     flex:0 0 auto; min-width:110px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
@@ -1362,6 +1381,7 @@
   <div class="funil-toolbar">
     <h2>📈 Funil de Expansão</h2>
     <div class="funil-toolbar-actions">
+      <input type="text" id="funilBuscaInput" placeholder="🔍 Buscar por praça, proponente, ID..." oninput="setFunilBusca(this.value)" style="padding:7px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); color:var(--ink); font-size:12px; font-family:inherit; min-width:220px;">
       <select id="funilFiltroStatusSel" onchange="setFunilFiltroStatus(this.value)">
         <option value="todos">Todos os status</option>
         <option value="Ativo">Ativo</option>
@@ -3990,7 +4010,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-152711";
+const APP_VERSION = "20260826-153344";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4107,6 +4127,7 @@ let FUNIL_DETALHADO = lerLocalStorageJSON('funil_detalhado_cache', []);
 let funilNegociacoesSistema = lerLocalStorageJSON('funil_negociacoes_sistema', []);
 let funilFiltroStatus = 'todos';
 let funilFiltroResp = 'todos';
+let funilBusca = '';
 let currentFunilNegId = null;
 let aporteFinanceiroActive = false;
 let APORTE_POLOS_DATA = lerLocalStorageJSON('aporte_polos_cache', null);
@@ -5391,6 +5412,7 @@ function combinarFunilDataset(){
 
 function setFunilFiltroStatus(v){ funilFiltroStatus = v; renderFunilDashboard(); }
 function setFunilFiltroResp(v){ funilFiltroResp = v; renderFunilDashboard(); }
+function setFunilBusca(v){ funilBusca = v.trim().toLowerCase(); renderFunilDashboard(); }
 
 function renderFunilDashboard(){
   const container = document.getElementById('funilDashboardBody');
@@ -5404,41 +5426,64 @@ function renderFunilDashboard(){
     return;
   }
 
+  if(funilBusca){
+    const q = funilBusca;
+    lista = lista.filter(l =>
+      (l.praca||'').toLowerCase().includes(q) ||
+      (l.proponente||'').toLowerCase().includes(q) ||
+      (l.idFecaf||'').toLowerCase().includes(q) ||
+      (l.contato||'').toLowerCase().includes(q)
+    );
+  }
+
   lista = lista.slice().sort((a,b) => (b.dataContato||'').localeCompare(a.dataContato||''));
 
-  const rowsHtml = lista.map(l=>{
+  const fmt = (d) => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '';
+
+  const cardsHtml = lista.map(l=>{
     const cor = FUNIL_STATUS_COLORS[l.status] || '#94a3b8';
     const editavel = !!l.origemSistema;
-    const dataContatoFmt = l.dataContato ? new Date(l.dataContato+'T00:00:00').toLocaleDateString('pt-BR') : '—';
-    const dataAtivacaoFmt = l.dataAtivacao ? new Date(l.dataAtivacao+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+
+    const chips = [
+      l.idFecaf ? `<span class="funil-chip">🆔 ${escapeHtml(l.idFecaf)}</span>` : '',
+      l.poloEmec ? `<span class="funil-chip">🏫 ${escapeHtml(l.poloEmec)}</span>` : '',
+      l.responsavel ? `<span class="funil-chip">🧑‍💼 ${escapeHtml(l.responsavel)}</span>` : '',
+      l.supervisores ? `<span class="funil-chip">👥 ${escapeHtml(l.supervisores)}</span>` : '',
+      l.contato ? `<span class="funil-chip">📞 ${escapeHtml(l.contato)}</span>` : '',
+      l.origemContato ? `<span class="funil-chip">🎯 ${escapeHtml(l.origemContato)}</span>` : '',
+      l.potencialHP ? `<span class="funil-chip">🔥 Potencial HP: ${escapeHtml(l.potencialHP)}</span>` : ''
+    ].filter(Boolean).join('');
+
+    const datas = [
+      l.dataContato ? `1º contato: ${fmt(l.dataContato)}` : '',
+      l.dataAtivacao ? `Ativação: ${fmt(l.dataAtivacao)}` : '',
+      l.atualizacaoStatus ? `Atualizado: ${fmt(l.atualizacaoStatus)}` : ''
+    ].filter(Boolean).join(' · ');
+
+    const implantacao = [
+      l.statusImplantacao ? `🏗️ ${escapeHtml(l.statusImplantacao)}` : '',
+      l.previsaoAbertura ? `Previsão abertura: ${fmt(l.previsaoAbertura)}` : '',
+      l.previsaoFinalizacao ? `Previsão finalização: ${fmt(l.previsaoFinalizacao)}` : ''
+    ].filter(Boolean).join(' · ');
+
     return `
-      <tr class="${editavel ? 'funil-row-sistema' : 'funil-row-planilha'}" ${editavel ? `onclick="openFunilNegModal('${l.id}')"` : ''}>
-        <td>${escapeHtml(l.idFecaf || '—')}</td>
-        <td>${escapeHtml(l.praca||'')}${l.uf ? '/'+escapeHtml(l.uf) : ''}</td>
-        <td>${escapeHtml(l.proponente||'—')}</td>
-        <td>${escapeHtml(l.contato||'—')}</td>
-        <td>${escapeHtml(l.origemContato||'—')}</td>
-        <td>${escapeHtml(l.responsavel||'—')}</td>
-        <td><span class="lead-status-pill" style="background:${cor}22; color:${cor}; border:1px solid ${cor}55;">${escapeHtml(l.status||'—')}</span></td>
-        <td>${dataContatoFmt}</td>
-        <td>${dataAtivacaoFmt}</td>
-        <td class="funil-obs-cell">${escapeHtml(l.obsStatus||'')}</td>
-        <td>${editavel ? '<span class="funil-tag-sistema">Sistema</span>' : '<span class="funil-tag-planilha">Planilha</span>'}</td>
-      </tr>`;
+      <div class="funil-card" ${editavel ? `onclick="openFunilNegModal('${l.id}')"` : ''}>
+        <div class="funil-card-top">
+          <div>
+            <div class="funil-card-praca">📍 ${escapeHtml(l.praca||'—')}${l.uf ? '/'+escapeHtml(l.uf) : ''}</div>
+            <div class="funil-card-proponente">${escapeHtml(l.proponente||'—')}</div>
+          </div>
+          <span class="lead-status-pill" style="background:${cor}22; color:${cor}; border:1px solid ${cor}55;">${escapeHtml(l.status||'—')}</span>
+        </div>
+        ${chips ? `<div class="funil-card-chips">${chips}</div>` : ''}
+        ${datas ? `<div class="funil-card-datas">${datas}</div>` : ''}
+        ${implantacao ? `<div class="funil-card-datas">${implantacao}</div>` : ''}
+        ${l.obsStatus ? `<div class="card-obs">📝 ${escapeHtml(l.obsStatus)}</div>` : ''}
+        <span class="${editavel ? 'funil-tag-sistema' : 'funil-tag-planilha'}">${editavel ? 'Sistema · clique para editar' : 'Planilha · só visualização'}</span>
+      </div>`;
   }).join('');
 
-  container.innerHTML = `
-    <div class="funil-table-wrap">
-      <table class="funil-table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Praça/UF</th><th>Proponente</th><th>Contato</th><th>Origem</th>
-            <th>Responsável</th><th>Status</th><th>1º Contato</th><th>Ativação</th><th>Observações</th><th>Fonte</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>`;
+  container.innerHTML = `<div class="funil-cards-grid">${cardsHtml}</div>`;
 }
 
 function abrirWhatsAppFunilNeg(){
