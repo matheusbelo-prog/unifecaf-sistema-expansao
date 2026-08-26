@@ -2143,7 +2143,82 @@ async function loadFunilDetalhadoFromServer(){
   }finally{
     hideLoadingBar();
   }
+  mesclarFunilNoKanban();
   if(funilActive) renderFunilDashboard();
+}
+
+/* ---------- FUNIL → KANBAN: cada negociação da planilha vira um card ----------
+   Mesmo padrão já usado em loadPolosNovosFromServer/chavePolo: mescla local
+   (nome+telefone como chave), sem duplicar. Um card só "gruda" de vez no
+   backend (polos-save) quando alguém mexe nele pelo Kanban — daí em diante o
+   chavePolo já bate com o registro real e o merge deixa de recriá-lo. */
+const STAGE_POR_STATUS_FUNIL = {
+  'Ativo': 'operacao',
+  'Em negociação': 'viabilidade',
+  'Validação da gerência': 'validacao',
+  'Previsto': 'implantacao',
+  'StandBy': 'prospeccao',
+  'Inativo': 'prospeccao',
+  'Declinado': 'prospeccao'
+};
+const MODELO_POR_STATUS_FUNIL = {
+  'Ativo': 'Polo Ativo',
+  'Em negociação': 'Polo em Negociação',
+  'Validação da gerência': 'Polo em Andamento',
+  'Previsto': 'Polo em Andamento',
+  'StandBy': 'Polo Inativo',
+  'Inativo': 'Polo Inativo',
+  'Declinado': 'Desistência'
+};
+const SITUACAO_POR_STATUS_FUNIL = { 'Inativo': 'Desativado', 'Declinado': 'Desativado' };
+
+function funilRowParaPartner(row){
+  const stage = STAGE_POR_STATUS_FUNIL[row.status] || 'prospeccao';
+  const stageDef = STAGES.find(s=>s.id===stage);
+  const modelo = MODELO_POR_STATUS_FUNIL[row.status] || 'Polo Ativo';
+  const situacao = SITUACAO_POR_STATUS_FUNIL[row.status] || 'Ativo';
+  const resp = RESPS_VALIDOS.includes(row.responsavel) ? row.responsavel : 'Gisele';
+  return {
+    id: uid(),
+    nome: row.proponente || row.praca || ('Polo ' + (row.idFecaf || '')),
+    contato: row.proponente || '',
+    cidade: row.praca || '',
+    uf: row.uf || '',
+    telefone: row.contato || '',
+    email: '',
+    modelo,
+    situacao,
+    resp,
+    gc: '',
+    desc: row.obsStatus || '',
+    stage,
+    origem: 'Planilha importada',
+    baseOrigem: 'Funil Expansão',
+    stageEnteredAt: row.dataContato ? row.dataContato + 'T00:00:00.000Z' : todayISO(),
+    checks: { [stage]: stageDef.checklist.map(()=>false) },
+    obs: [],
+    hist: [{ text: `Importado automaticamente da planilha Funil Expansão (ID FECAF ${row.idFecaf || '—'}, status "${row.status || '—'}")`, date: todayISO() }]
+  };
+}
+
+function mesclarFunilNoKanban(){
+  if(!Array.isArray(FUNIL_DETALHADO) || FUNIL_DETALHADO.length === 0) return;
+  const existentes = new Set(partners.map(chavePolo));
+  let novos = 0;
+  FUNIL_DETALHADO.forEach(row=>{
+    const p = funilRowParaPartner(row);
+    const chave = chavePolo(p);
+    if(chave !== '|' && !existentes.has(chave)){
+      partners.push(p);
+      existentes.add(chave);
+      novos++;
+    }
+  });
+  if(novos > 0){
+    saveToLocalStorage();
+    showToast(`${novos} negociação(ões) do Funil importada(s) pro Kanban`);
+    render();
+  }
 }
 
 /* ---------- SINCRONIZAÇÃO: Resumo financeiro automático (planilha Expansão) ---------- */
@@ -2375,6 +2450,7 @@ async function loadFromServer(){
       showToast(`Não foi possível conectar ao n8n — mostrando a base inicial da planilha de Expansão.`);
     }
   }
+  mesclarFunilNoKanban();
   render();
 }
 
@@ -3740,7 +3816,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-140912";
+const APP_VERSION = "20260826-143134";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
