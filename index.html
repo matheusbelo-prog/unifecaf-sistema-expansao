@@ -2007,6 +2007,57 @@ async function apiListarFup(resp){
   return Array.isArray(data?.lista) ? data.lista : (Array.isArray(data) ? data : []);
 }
 
+// Converte um lead do FUP Diário num card de parceiro pro Kanban principal.
+// A etapa é decidida uma única vez, na criação — se depois o consultor mover
+// o card manualmente, uma nova sincronização não desfaz esse trabalho (só
+// adiciona os que ainda não existem, nunca move um card que já existe).
+function leadFupParaPartner(lead, resp){
+  const stage = stageFupParaKanban(lead.status);
+  const descartado = STATUS_FUP_DESCARTADO.has(lead.status);
+  const origemTexto = (lead.origem||'').trim();
+  return {
+    id: uid(),
+    nome: lead.nome || '',
+    contato: lead.nome || '',
+    cidade: lead.cidade || '',
+    uf: lead.uf || '',
+    telefone: lead.telefone || '',
+    email: lead.email || '',
+    modelo: lead.status === 'Convertido em Polo' ? 'Polo em Andamento' : 'Polo em Negociação',
+    situacao: descartado ? 'Desativado' : 'Ativo',
+    resp,
+    gc: '',
+    desc: (origemTexto ? `[Origem: ${origemTexto}] ` : '') + (lead.obs || ''),
+    origem: 'Planilha importada',
+    baseOrigem: `FUP Diário ${resp}`,
+    stage,
+    stageEnteredAt: lead.data ? (lead.data + 'T00:00:00.000Z') : todayISO(),
+    checks: { [stage]: (STAGES.find(s=>s.id===stage)?.checklist || []).map(()=>false) },
+    obs: [],
+    hist: [{ text: `Importado do FUP Diário (${resp}) — status na planilha: ${lead.status}`, date: todayISO() }]
+  };
+}
+
+function mesclarFupNoKanban(dados, resp){
+  const existentes = new Set(partners.map(chavePolo));
+  let novos = 0;
+  dados.forEach(lead=>{
+    if(!lead.nome) return;
+    const partnerCandidato = leadFupParaPartner(lead, resp);
+    const chave = chavePolo(partnerCandidato);
+    if(!existentes.has(chave)){
+      partners.push(partnerCandidato);
+      existentes.add(chave);
+      novos++;
+    }
+  });
+  if(novos > 0){
+    saveToLocalStorage();
+    render();
+  }
+  return novos;
+}
+
 async function loadFupFromServer(resp){
   showLoadingBar();
   try{
@@ -2014,7 +2065,8 @@ async function loadFupFromServer(resp){
     if(Array.isArray(dados) && dados.length > 0){
       leads = leads.filter(l => l.resp !== resp).concat(dados.map(d => ({ ...d, resp })));
       localStorage.setItem('fup_leads', JSON.stringify(leads));
-      showToast(`FUP ${resp} atualizado: ${dados.length} lead(s) do n8n`);
+      const novosNoKanban = mesclarFupNoKanban(dados, resp);
+      showToast(`FUP ${resp} atualizado: ${dados.length} lead(s) do n8n` + (novosNoKanban > 0 ? ` — ${novosNoKanban} novo(s) card(s) no Kanban` : ''));
     }
   }catch(e){
     console.error(`[fup-${resp}] Falha ao buscar do n8n, mantendo dados atuais:`, e);
@@ -3562,7 +3614,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-110626";
+const APP_VERSION = "20260826-115535";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4257,6 +4309,27 @@ function normalizarStatusFup(valor){
   if(!chave) return "Aguardando retorno";
   return STATUS_FUP_CANONICO[chave] || (valor||'').toString().trim();
 }
+
+// Em qual coluna do Kanban de Polos um lead do FUP Diário entra, de acordo
+// com o status dele na planilha — decidido com o usuário em 26/08/2026.
+// Sem mapeamento direto = fica em Prospecção (é sempre o ponto de partida).
+const STAGE_POR_STATUS_FUP = {
+  "Em análise": "viabilidade",
+  "Fotos do local": "viabilidade",
+  "Reunião agendada": "viabilidade",
+  "Reagendar reunião": "viabilidade",
+  "Reunião realizada": "viabilidade",
+  "Proposta encaminhada": "validacao",
+  "Em negociação": "validacao",
+  "Reunião de fechamento": "validacao",
+  "Convertido em Polo": "implantacao"
+};
+function stageFupParaKanban(status){
+  return STAGE_POR_STATUS_FUP[status] || STAGE_IDS[0];
+}
+// Leads com esses status são considerados "mortos" — ainda aparecem no
+// Kanban (usuário pediu sem filtro), mas marcados como inativos.
+const STATUS_FUP_DESCARTADO = new Set(["Sem interesse", "Sem perfil", "Sem aporte", "Contato inválido", "Reprovado"]);
 
 // Datas nas planilhas de origem vêm em formatos variados (31/12/2026,
 // 31/12/26, 31.12.2026) e "00/00/0000" quando está em branco.
