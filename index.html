@@ -4011,7 +4011,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-155826";
+const APP_VERSION = "20260826-161838";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4129,6 +4129,8 @@ let funilNegociacoesSistema = lerLocalStorageJSON('funil_negociacoes_sistema', [
 let funilFiltroStatus = 'todos';
 let funilFiltroResp = 'todos';
 let funilBusca = '';
+let funilPage = 1;
+const FUNIL_PAGE_SIZE = 100;
 let currentFunilNegId = null;
 let aporteFinanceiroActive = false;
 let APORTE_POLOS_DATA = lerLocalStorageJSON('aporte_polos_cache', null);
@@ -5411,9 +5413,10 @@ function combinarFunilDataset(){
   return [...FUNIL_DETALHADO, ...doSistema];
 }
 
-function setFunilFiltroStatus(v){ funilFiltroStatus = v; renderFunilDashboard(); }
-function setFunilFiltroResp(v){ funilFiltroResp = v; renderFunilDashboard(); }
-function setFunilBusca(v){ funilBusca = v.trim().toLowerCase(); renderFunilDashboard(); }
+function setFunilFiltroStatus(v){ funilFiltroStatus = v; funilPage = 1; renderFunilDashboard(); }
+function setFunilFiltroResp(v){ funilFiltroResp = v; funilPage = 1; renderFunilDashboard(); }
+function setFunilBusca(v){ funilBusca = v.trim().toLowerCase(); funilPage = 1; renderFunilDashboard(); }
+function changeFunilPage(delta){ funilPage += delta; renderFunilDashboard(); }
 
 function renderFunilDashboard(){
   const container = document.getElementById('funilDashboardBody');
@@ -5439,9 +5442,15 @@ function renderFunilDashboard(){
 
   lista = lista.slice().sort((a,b) => (b.dataContato||'').localeCompare(a.dataContato||''));
 
+  const totalPages = Math.max(1, Math.ceil(lista.length / FUNIL_PAGE_SIZE));
+  if(funilPage > totalPages) funilPage = totalPages;
+  if(funilPage < 1) funilPage = 1;
+  const startIdx = (funilPage - 1) * FUNIL_PAGE_SIZE;
+  const pageItems = lista.slice(startIdx, startIdx + FUNIL_PAGE_SIZE);
+
   const fmt = (d) => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '';
 
-  const cardsHtml = lista.map(l=>{
+  const cardsHtml = pageItems.map(l=>{
     const cor = FUNIL_STATUS_COLORS[l.status] || '#94a3b8';
     const editavel = !!l.origemSistema;
 
@@ -5484,7 +5493,14 @@ function renderFunilDashboard(){
       </div>`;
   }).join('');
 
-  container.innerHTML = `<div class="funil-cards-grid">${cardsHtml}</div>`;
+  const pagerHtml = totalPages > 1 ? `
+    <div class="fup-pager">
+      <button ${funilPage<=1?'disabled':''} onclick="changeFunilPage(-1)">‹</button>
+      <span>${funilPage}/${totalPages} · ${lista.length} negociações</span>
+      <button ${funilPage>=totalPages?'disabled':''} onclick="changeFunilPage(1)">›</button>
+    </div>` : `<div style="text-align:center; font-size:11px; color:var(--ink-faint); margin-top:10px;">${lista.length} negociações</div>`;
+
+  container.innerHTML = `<div class="funil-cards-grid">${cardsHtml}</div>${pagerHtml}`;
 }
 
 function abrirWhatsAppFunilNeg(){
