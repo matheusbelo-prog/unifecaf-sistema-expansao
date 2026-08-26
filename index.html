@@ -2043,6 +2043,7 @@ function mesclarFupNoKanban(dados, resp){
   let novos = 0;
   dados.forEach(lead=>{
     if(!lead.nome) return;
+    if(STATUS_FUP_SO_NO_FOLLOWUP.has(lead.status)) return;
     const partnerCandidato = leadFupParaPartner(lead, resp);
     const chave = chavePolo(partnerCandidato);
     if(!existentes.has(chave)){
@@ -3614,7 +3615,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-115535";
+const APP_VERSION = "20260826-115836";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4329,7 +4330,10 @@ function stageFupParaKanban(status){
 }
 // Leads com esses status são considerados "mortos" — ainda aparecem no
 // Kanban (usuário pediu sem filtro), mas marcados como inativos.
-const STATUS_FUP_DESCARTADO = new Set(["Sem interesse", "Sem perfil", "Sem aporte", "Contato inválido", "Reprovado"]);
+const STATUS_FUP_DESCARTADO = new Set(["Sem perfil", "Sem aporte", "Contato inválido", "Reprovado"]);
+// Esses aqui nem chegam a virar card no Kanban — ficam só dentro do FUP
+// Diário (tela "Central") até algum dia serem realmente prospectados.
+const STATUS_FUP_SO_NO_FOLLOWUP = new Set(["Sem retorno", "Sem interesse"]);
 
 // Datas nas planilhas de origem vêm em formatos variados (31/12/2026,
 // 31/12/26, 31.12.2026) e "00/00/0000" quando está em branco.
