@@ -1143,7 +1143,6 @@
     <button class="btn btn-solid" onclick="openNewPartner()">+ Novo Parceiro</button>
     <button class="btn btn-ghost" onclick="openQuickAdd()" title="Cadastrar só com Nome e Telefone">⚡ Rápido</button>
     <button class="btn btn-ghost nav-arrow-btn" onclick="scrollBoardNext()" title="Rolar para as próximas colunas">→</button>
-    <button class="btn btn-ghost" id="boardViewToggleBtn" onclick="toggleBoardViewMode()" title="Alternar entre cards por etapa e tabela (estilo planilha)">📋 Ver Tabela</button>
     <button class="btn btn-ghost" id="dashboardToggleBtn" onclick="toggleDashboardView()" title="Ir para o dashboard">📊 Dashboard</button>
     <button class="btn btn-ghost" id="centralToggleBtn" onclick="toggleCentralView()" title="Central de Controle">🎯 Central</button>
     <button class="btn btn-ghost" id="funilToggleBtn" onclick="toggleFunilView()" title="Funil de Expansão (visão detalhada)">📈 Funil</button>
@@ -2708,9 +2707,11 @@ function toggleBoardViewMode(){
 }
 
 /* ---------- TELA INICIAL EM FORMATO DE TABELA (igual ao cabeçalho da
-   planilha Funil Expansão) — modo padrão desde 2026-08-26, a pedido do
-   usuário. O modo antigo de cards por etapa (renderKanbanColunas) continua
-   disponível pelo botão "Ver Cards", sem ter sido removido. */
+   planilha Funil Expansão) — tentativa de 2026-08-26 rejeitada pelo usuário
+   (queria os cards por etapa de volta, "está a mesma coisa" quando viu essa
+   tabela de novo pelo botão "Ver Tabela"). O botão de alternar foi removido
+   do header; renderPolosTable/toggleBoardViewMode ficam inertes no código,
+   sem uso — não reintroduzir esse modo sem pedido explícito. */
 function renderPolosTable(board){
   const itens = partners.filter(matchesFilters).slice().sort((a,b)=>(b.dataContato||'').localeCompare(a.dataContato||''));
 
@@ -4010,7 +4011,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-153344";
+const APP_VERSION = "20260826-153840";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
