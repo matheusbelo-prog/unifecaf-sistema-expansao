@@ -1411,7 +1411,7 @@
     </div>
   </div>
   <div class="funil-legend">
-    <span class="funil-legend-item"><span class="funil-legend-dot" style="background:#60a5fa;"></span> Da planilha (só visualização)</span>
+    <span class="funil-legend-item"><span class="funil-legend-dot" style="background:#60a5fa;"></span> Da planilha (clique para editar, sem alterar a planilha)</span>
     <span class="funil-legend-item"><span class="funil-legend-dot" style="background:#4ade80;"></span> Cadastrado no sistema (clique para editar)</span>
   </div>
   <div id="funilDashboardBody"></div>
@@ -4031,7 +4031,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-164213";
+const APP_VERSION = "20260826-165531";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -4155,6 +4155,7 @@ let funilBusca = '';
 let funilPage = 1;
 const FUNIL_PAGE_SIZE = 50;
 let currentFunilNegId = null;
+let currentFunilSubstituiKey = null;
 let aporteFinanceiroActive = false;
 let APORTE_POLOS_DATA = lerLocalStorageJSON('aporte_polos_cache', null);
 let aportePoloBusca = '';
@@ -5433,9 +5434,15 @@ function renderFunilQuad(){
 /* ---------- FUNIL DE EXPANSÃO — PAINEL DETALHADO ---------- */
 function saveFunilNegociacoesToStorage(){ try{ localStorage.setItem('funil_negociacoes_sistema', JSON.stringify(funilNegociacoesSistema)); }catch(e){} }
 
+function chaveFunilLinha(l){
+  return ((l.idFecaf||'') + '|' + (l.praca||'') + '|' + (l.proponente||'')).toLowerCase().trim();
+}
+
 function combinarFunilDataset(){
+  const chavesSubstituidas = new Set(funilNegociacoesSistema.filter(n=>n.substituiPlanilhaKey).map(n=>n.substituiPlanilhaKey));
+  const daPlanilha = FUNIL_DETALHADO.filter(l => !chavesSubstituidas.has(chaveFunilLinha(l)));
   const doSistema = funilNegociacoesSistema.map(n => ({ ...n, origemSistema: true }));
-  return [...FUNIL_DETALHADO, ...doSistema];
+  return [...daPlanilha, ...doSistema];
 }
 
 function setFunilFiltroStatus(v){ funilFiltroStatus = v; funilPage = 1; renderFunilDashboard(); }
@@ -5502,7 +5509,7 @@ function renderFunilDashboard(){
     ].filter(Boolean).join(' · ');
 
     return `
-      <div class="funil-card" ${editavel ? `onclick="openFunilNegModal('${l.id}')"` : ''}>
+      <div class="funil-card" onclick="openFunilNegModal('${l.id}')">
         <div class="funil-card-top">
           <div>
             <div class="funil-card-praca">📍 ${escapeHtml(l.praca||'—')}${l.uf ? '/'+escapeHtml(l.uf) : ''}</div>
@@ -5514,7 +5521,7 @@ function renderFunilDashboard(){
         ${datas ? `<div class="funil-card-datas">${datas}</div>` : ''}
         ${implantacao ? `<div class="funil-card-datas">${implantacao}</div>` : ''}
         ${l.obsStatus ? `<div class="card-obs">📝 ${escapeHtml(l.obsStatus)}</div>` : ''}
-        <span class="${editavel ? 'funil-tag-sistema' : 'funil-tag-planilha'}">${editavel ? 'Sistema · clique para editar' : 'Planilha · só visualização'}</span>
+        <span class="${editavel ? 'funil-tag-sistema' : 'funil-tag-planilha'}">${editavel ? 'Sistema · clique para editar' : 'Planilha · clique para editar'}</span>
       </div>`;
   }).join('');
 
@@ -5540,24 +5547,34 @@ function abrirWhatsAppFunilNeg(){
 }
 
 function openFunilNegModal(id){
-  currentFunilNegId = id;
+  currentFunilNegId = null;
+  currentFunilSubstituiKey = null;
   const del = document.getElementById('funilNegDeleteBtn');
-  if(id){
-    const n = funilNegociacoesSistema.find(x=>x.id===id);
-    if(!n) return;
-    document.getElementById('funilNegModalTitle').textContent = 'Editar Negociação';
-    document.getElementById('funilneg_idFecaf').value = n.idFecaf || '';
-    document.getElementById('funilneg_praca').value = n.praca || '';
-    document.getElementById('funilneg_uf').value = n.uf || '';
-    document.getElementById('funilneg_proponente').value = n.proponente || '';
-    document.getElementById('funilneg_contato').value = n.contato || '';
-    document.getElementById('funilneg_origemContato').value = n.origemContato || '';
-    document.getElementById('funilneg_responsavel').value = n.responsavel || 'Gisele';
-    document.getElementById('funilneg_status').value = n.status || 'Em negociação';
-    document.getElementById('funilneg_dataContato').value = n.dataContato || '';
-    document.getElementById('funilneg_dataAtivacao').value = n.dataAtivacao || '';
-    document.getElementById('funilneg_obsStatus').value = n.obsStatus || '';
-    del.style.display = "inline-flex";
+
+  const n = id ? funilNegociacoesSistema.find(x=>x.id===id) : null;
+  const daPlanilha = (!n && id) ? FUNIL_DETALHADO.find(x=>x.id===id) : null;
+  const registro = n || daPlanilha;
+
+  if(registro){
+    document.getElementById('funilNegModalTitle').textContent = n ? 'Editar Negociação' : 'Editar Negociação (vinda da planilha)';
+    document.getElementById('funilneg_idFecaf').value = registro.idFecaf || '';
+    document.getElementById('funilneg_praca').value = registro.praca || '';
+    document.getElementById('funilneg_uf').value = registro.uf || '';
+    document.getElementById('funilneg_proponente').value = registro.proponente || '';
+    document.getElementById('funilneg_contato').value = registro.contato || '';
+    document.getElementById('funilneg_origemContato').value = registro.origemContato || '';
+    document.getElementById('funilneg_responsavel').value = registro.responsavel || 'Gisele';
+    document.getElementById('funilneg_status').value = registro.status || 'Em negociação';
+    document.getElementById('funilneg_dataContato').value = registro.dataContato || '';
+    document.getElementById('funilneg_dataAtivacao').value = registro.dataAtivacao || '';
+    document.getElementById('funilneg_obsStatus').value = registro.obsStatus || '';
+    if(n){
+      currentFunilNegId = n.id;
+      del.style.display = "inline-flex";
+    } else {
+      currentFunilSubstituiKey = chaveFunilLinha(daPlanilha);
+      del.style.display = "none";
+    }
   } else {
     document.getElementById('funilNegModalTitle').textContent = 'Nova Negociação';
     ['funilneg_idFecaf','funilneg_praca','funilneg_proponente','funilneg_contato','funilneg_origemContato','funilneg_obsStatus'].forEach(f=>document.getElementById(f).value = '');
@@ -5574,6 +5591,7 @@ function openFunilNegModal(id){
 function closeFunilNegModal(){
   document.getElementById('funilNegOverlay').classList.remove('open');
   currentFunilNegId = null;
+  currentFunilSubstituiKey = null;
 }
 
 function saveFunilNeg(){
@@ -5598,8 +5616,10 @@ function saveFunilNeg(){
     Object.assign(n, dados);
     showToast("Negociação atualizada");
   } else {
-    funilNegociacoesSistema.push({ id: uid(), ...dados, origemSistema: true });
-    showToast("Negociação cadastrada");
+    const novo = { id: uid(), ...dados, origemSistema: true };
+    if(currentFunilSubstituiKey) novo.substituiPlanilhaKey = currentFunilSubstituiKey;
+    funilNegociacoesSistema.push(novo);
+    showToast(currentFunilSubstituiKey ? "Negociação atualizada — a partir de agora é editada por aqui, sem mexer na planilha" : "Negociação cadastrada");
   }
   saveFunilNegociacoesToStorage();
   closeFunilNegModal();
