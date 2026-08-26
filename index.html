@@ -346,6 +346,9 @@
     align-items:flex-start;
     scroll-behavior:smooth;
   }
+  .board.board-table-mode{
+    display:block; overflow-x:visible;
+  }
   .column{
     background:var(--panel);
     border:1px solid var(--panel-border);
@@ -917,6 +920,11 @@
     font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
     background:rgba(96,165,250,.16); color:#60a5fa; border:1px solid rgba(96,165,250,.4);
   }
+  .funil-status-select{
+    font-size:11px; font-weight:700; padding:4px 8px; border-radius:999px;
+    font-family:inherit; cursor:pointer; appearance:none; -webkit-appearance:none;
+  }
+  .funil-status-select:focus{ outline:none; }
 
   .fin-source-tabs{display:flex; gap:6px; margin-bottom:10px; position:relative; z-index:3;}
   .fin-source-btn{
@@ -1105,6 +1113,7 @@
     <button class="btn btn-solid" onclick="openNewPartner()">+ Novo Parceiro</button>
     <button class="btn btn-ghost" onclick="openQuickAdd()" title="Cadastrar só com Nome e Telefone">⚡ Rápido</button>
     <button class="btn btn-ghost nav-arrow-btn" onclick="scrollBoardNext()" title="Rolar para as próximas colunas">→</button>
+    <button class="btn btn-ghost" id="boardViewToggleBtn" onclick="toggleBoardViewMode()" title="Alternar entre tabela (estilo planilha) e cards por etapa">🗂️ Ver Cards</button>
     <button class="btn btn-ghost" id="dashboardToggleBtn" onclick="toggleDashboardView()" title="Ir para o dashboard">📊 Dashboard</button>
     <button class="btn btn-ghost" id="centralToggleBtn" onclick="toggleCentralView()" title="Central de Controle">🎯 Central</button>
     <button class="btn btn-ghost" id="funilToggleBtn" onclick="toggleFunilView()" title="Funil de Expansão (visão detalhada)">📈 Funil</button>
@@ -2194,6 +2203,12 @@ function funilRowParaPartner(row){
     stage,
     origem: 'Planilha importada',
     baseOrigem: 'Funil Expansão',
+    idFecaf: row.idFecaf || '',
+    poloEmec: row.poloEmec || '',
+    dataContato: row.dataContato || '',
+    statusNegociacao: STATUS_NEGOCIACAO_VALIDOS.includes(row.status) ? row.status : 'Ativo',
+    dataAtivacao: row.dataAtivacao || '',
+    atualizacaoStatus: row.atualizacaoStatus || '',
     stageEnteredAt: row.dataContato ? row.dataContato + 'T00:00:00.000Z' : todayISO(),
     checks: { [stage]: stageDef.checklist.map(()=>false) },
     obs: [],
@@ -2621,7 +2636,78 @@ function matchesFilters(p){
 function render(){
   const board = document.getElementById('board');
   board.innerHTML = "";
+  board.classList.toggle('board-table-mode', boardViewMode === 'tabela');
 
+  if(boardViewMode === 'tabela'){
+    renderPolosTable(board);
+  } else {
+    renderKanbanColunas(board);
+  }
+
+  updateStats();
+  if(dashboardActive) renderDashboard();
+  if(centralActive) renderCentral();
+}
+
+function toggleBoardViewMode(){
+  boardViewMode = boardViewMode === 'tabela' ? 'cards' : 'tabela';
+  const btn = document.getElementById('boardViewToggleBtn');
+  if(btn) btn.textContent = boardViewMode === 'tabela' ? '🗂️ Ver Cards' : '📋 Ver Tabela';
+  render();
+}
+
+/* ---------- TELA INICIAL EM FORMATO DE TABELA (igual ao cabeçalho da
+   planilha Funil Expansão) — modo padrão desde 2026-08-26, a pedido do
+   usuário. O modo antigo de cards por etapa (renderKanbanColunas) continua
+   disponível pelo botão "Ver Cards", sem ter sido removido. */
+function renderPolosTable(board){
+  const itens = partners.filter(matchesFilters).slice().sort((a,b)=>(b.dataContato||'').localeCompare(a.dataContato||''));
+
+  if(itens.length === 0){
+    board.innerHTML = `<div class="central-empty">Nenhum polo encontrado com esse filtro</div>`;
+    return;
+  }
+
+  const linhasHtml = itens.map(p=>{
+    const status = statusNegociacaoDoPartner(p);
+    const cor = FUNIL_STATUS_COLORS[status] || '#94a3b8';
+    const opcoesStatus = STATUS_NEGOCIACAO_VALIDOS.map(s=>`<option value="${s}" ${s===status?'selected':''}>${s}</option>`).join('');
+    const fmt = (d) => d ? new Date(d+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+    return `
+      <tr onclick="if(event.target.tagName!=='SELECT') openPartner('${p.id}')">
+        <td>${escapeHtml(p.idFecaf || '—')}</td>
+        <td>${escapeHtml(p.cidade || '—')}</td>
+        <td>${escapeHtml(p.uf || '—')}</td>
+        <td>${escapeHtml(p.poloEmec || '—')}</td>
+        <td>${escapeHtml(p.nome || '—')}</td>
+        <td>${escapeHtml(p.resp || '—')}</td>
+        <td onclick="event.stopPropagation()">
+          <select class="funil-status-select" style="background:${cor}22; color:${cor}; border:1px solid ${cor}55;" onchange="atualizarStatusNegociacaoPartner('${p.id}', this.value)">
+            ${opcoesStatus}
+          </select>
+        </td>
+        <td>${fmt(p.dataContato)}</td>
+        <td>${fmt(p.dataAtivacao)}</td>
+        <td>${fmt(p.atualizacaoStatus)}</td>
+        <td class="funil-obs-cell">${escapeHtml(p.desc || '')}</td>
+      </tr>`;
+  }).join('');
+
+  board.innerHTML = `
+    <div class="funil-table-wrap">
+      <table class="funil-table">
+        <thead>
+          <tr>
+            <th>ID FECAF</th><th>Praça</th><th>UF</th><th>Polo E-MEC</th><th>Proponente</th><th>Responsável</th>
+            <th>Status Negociação</th><th>Data 1º Contato</th><th>Data Ativação</th><th>Atualização do Status</th><th>Observações</th>
+          </tr>
+        </thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderKanbanColunas(board){
   STAGES.forEach(stage=>{
     const col = document.createElement('div');
     col.className = "column";
@@ -2705,10 +2791,6 @@ function render(){
   STAGES.forEach(stage=>{
     setupColumnScrollbar(stage.id);
   });
-
-  updateStats();
-  if(dashboardActive) renderDashboard();
-  if(centralActive) renderCentral();
 }
 
 function setupColumnScrollbar(stageId){
@@ -3554,6 +3636,44 @@ async function finalizarImportacao(data){
 const MODELOS_VALIDOS = ["Polo Ativo", "Polo Inativo", "Polo SDR", "Polo em Negociação", "Polo em Andamento", "Polo Desativado", "Desistência"];
 const RESPS_VALIDOS = ["Gisele", "Décio"];
 const ORIGENS_VALIDAS = ["Indicação", "LinkedIn", "Anúncio", "Base própria", "Planilha importada", "Site/Formulário", "Evento", "Outro"];
+const STATUS_NEGOCIACAO_VALIDOS = ["Ativo", "Em negociação", "Validação da gerência", "Previsto", "StandBy", "Inativo", "Declinado"];
+
+/* Toda linha da tabela (tela inicial) mostra um "Status Negociação" no
+   vocabulário da planilha Funil Expansão, mesmo pra parceiros antigos/manuais
+   que só têm modelo/stage — por isso deriva um valor plausível quando o
+   parceiro não veio da importação do Funil (que já grava statusNegociacao). */
+function statusNegociacaoDoPartner(p){
+  if(p.statusNegociacao && STATUS_NEGOCIACAO_VALIDOS.includes(p.statusNegociacao)) return p.statusNegociacao;
+  if(p.stage === 'operacao') return 'Ativo';
+  if(p.modelo === 'Polo em Negociação') return 'Em negociação';
+  if(p.modelo === 'Polo em Andamento') return 'Validação da gerência';
+  if(p.modelo === 'Desistência') return 'Declinado';
+  if(p.modelo === 'Polo Inativo' || p.modelo === 'Polo Desativado') return 'Inativo';
+  return 'Ativo';
+}
+
+/* Aplica um novo Status Negociação escolhido na tabela: além do campo em si,
+   recalcula stage/modelo/situacao (mesmos mapas do mesclarFunilNoKanban) pra
+   as outras telas (Dashboard, filtro por modelo) continuarem coerentes. */
+function atualizarStatusNegociacaoPartner(id, novoStatus){
+  const p = getPartner(id);
+  if(!p || !STATUS_NEGOCIACAO_VALIDOS.includes(novoStatus)) return;
+  const statusAnterior = statusNegociacaoDoPartner(p);
+  if(statusAnterior === novoStatus) return;
+  p.statusNegociacao = novoStatus;
+  p.stage = STAGE_POR_STATUS_FUNIL[novoStatus] || p.stage;
+  p.modelo = MODELO_POR_STATUS_FUNIL[novoStatus] || p.modelo;
+  p.situacao = SITUACAO_POR_STATUS_FUNIL[novoStatus] || 'Ativo';
+  p.atualizacaoStatus = todayISO().slice(0,10);
+  if(!p.checks[p.stage]){
+    const stageDef = STAGES.find(s=>s.id===p.stage);
+    p.checks[p.stage] = stageDef ? stageDef.checklist.map(()=>false) : [];
+  }
+  p.hist.push({text:`Status Negociação alterado de "${statusAnterior}" para "${novoStatus}"`, date: todayISO()});
+  render();
+  showToast(`${p.nome}: status atualizado para "${novoStatus}"`);
+  syncPartner(p);
+}
 
 // Converte entre o id interno da etapa (ex.: "formalizacao") e o nome
 // exibido no quadro (ex.: "Formalização") — usado pra exportar/importar
@@ -3816,7 +3936,7 @@ function showToast(msg){
 // Se alguém publicar uma atualização enquanto o usuário já está com a
 // página aberta, aparece um aviso pra recarregar — sem precisar avisar
 // ninguém manualmente.
-const APP_VERSION = "20260826-143134";
+const APP_VERSION = "20260826-145037";
 
 function mostrarAvisoAtualizacao(){
   if(document.getElementById('updateBanner')) return;
@@ -3899,6 +4019,7 @@ function applyTheme(theme){
   try{ localStorage.setItem('expansao_theme', theme); }catch(e){}
 }
 /* ---------- DASHBOARD ---------- */
+let boardViewMode = 'tabela'; // 'tabela' (padrão, formato planilha) ou 'cards' (Kanban por etapa)
 let dashboardActive = false;
 let centralActive = false;
 let linksActive = false;
